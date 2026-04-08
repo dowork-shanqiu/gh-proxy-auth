@@ -21,6 +21,12 @@ var (
 	exp4 = regexp.MustCompile(`^(?:https?://)?raw\.(?:githubusercontent|github)\.com/(.+?)/(.+?)/.+?/.+$`)
 	exp5 = regexp.MustCompile(`^(?:https?://)?gist\.(?:githubusercontent|github)\.com/(.+?)/.+?/.+$`)
 	exp6 = regexp.MustCompile(`^(?:https?://)?github\.com/(.+?)/(.+?)/tags.*$`)
+
+	// Used for jsDelivr URL rewriting
+	expRawRewrite = regexp.MustCompile(`^((?:https?://)?raw\.(?:githubusercontent|github)\.com/.+?/.+?)/(.+?/)`)
+
+	// Used for fixing double slash issue
+	expSchemeSlash = regexp.MustCompile(`^https?:/+`)
 )
 
 type ProxyHandler struct{}
@@ -54,7 +60,7 @@ func (h *ProxyHandler) Handle(c *gin.Context) {
 	}
 
 	// Fix double slash issue
-	rawPath = regexp.MustCompile(`^https?:/+`).ReplaceAllString(rawPath, "https://")
+	rawPath = expSchemeSlash.ReplaceAllString(rawPath, "https://")
 
 	if !checkURL(rawPath) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid GitHub URL"})
@@ -92,7 +98,7 @@ func (h *ProxyHandler) Handle(c *gin.Context) {
 		}
 		rawPath = strings.Replace(rawPath, "/blob/", "/raw/", 1)
 	} else if config.C.Proxy.JsDelivr && exp4.MatchString(rawPath) {
-		newURL := regexp.MustCompile(`(\.com/.+?/.+?)/(.+?/)`).ReplaceAllString(rawPath, "$1@$2")
+		newURL := expRawRewrite.ReplaceAllString(rawPath, "$1@$2")
 		newURL = strings.Replace(newURL, "raw.githubusercontent.com", "cdn.jsdelivr.net/gh", 1)
 		newURL = strings.Replace(newURL, "raw.github.com", "cdn.jsdelivr.net/gh", 1)
 		c.Redirect(http.StatusFound, newURL)

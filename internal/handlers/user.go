@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/config"
 	"github.com/dowork-shanqiu/gh-proxy-auth/internal/database"
 	"github.com/dowork-shanqiu/gh-proxy-auth/internal/models"
 	"github.com/dowork-shanqiu/gh-proxy-auth/internal/service"
@@ -281,7 +280,3 @@ func (h *UserHandler) DeletePasskey(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Passkey 已删除"})
 }
-
-// Unused import guard
-var _ = config.C
-var _ = base64.RawURLEncoding

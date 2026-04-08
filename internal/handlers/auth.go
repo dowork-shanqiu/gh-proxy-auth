@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	_ "github.com/dowork-shanqiu/gh-proxy-auth/internal/config"
 	"github.com/dowork-shanqiu/gh-proxy-auth/internal/database"
 	"github.com/dowork-shanqiu/gh-proxy-auth/internal/models"
 	"github.com/dowork-shanqiu/gh-proxy-auth/internal/service"
