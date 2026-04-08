@@ -35,6 +35,8 @@ func ServeFrontend(c *gin.Context) {
 		if err == nil {
 			defer file.Close()
 			stat, err := file.Stat()
+			// Only serve if it's a regular file. Directories and stat errors fall
+			// through intentionally to serve index.html for SPA client-side routing.
 			if err == nil && !stat.IsDir() {
 				http.ServeContent(c.Writer, c.Request, stat.Name(), stat.ModTime(), file)
 				return
@@ -47,7 +49,7 @@ func ServeFrontend(c *gin.Context) {
 	// when the request path ends with "/index.html".
 	file, err := frontendFS.Open("/index.html")
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Frontend not available"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Failed to load index.html"})
 		return
 	}
 	defer file.Close()
