@@ -9,6 +9,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 )
 
@@ -59,12 +60,9 @@ func GetSetting(key string) string {
 }
 
 func SetSetting(key, value string) error {
-	var setting models.Setting
-	result := DB.Where("key = ?", key).First(&setting)
-	if result.Error != nil {
-		setting = models.Setting{Key: key, Value: value}
-		return DB.Create(&setting).Error
-	}
-	setting.Value = value
-	return DB.Save(&setting).Error
+	setting := models.Setting{Key: key, Value: value}
+	return DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "key"}},
+		DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at"}),
+	}).Create(&setting).Error
 }

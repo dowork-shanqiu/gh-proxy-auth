@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import api from '@/api'
-import { Settings, Users, FileText, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { Settings, Users, FileText, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-vue-next'
 
 const activeTab = ref('settings')
 
@@ -19,6 +19,14 @@ const usersTotal = ref(0)
 const logs = ref<any[]>([])
 const logsPage = ref(1)
 const logsTotal = ref(0)
+
+// Update
+const updateInfo = ref<any>(null)
+const updateChecking = ref(false)
+const updateApplying = ref(false)
+const updateMsg = ref({ text: '', type: '' })
+const restarting = ref(false)
+let restartPollTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   fetchSettings()
@@ -76,6 +84,64 @@ function formatDate(dateStr: string) {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleString('zh-CN')
 }
+
+// --- Update ---
+
+async function checkUpdate() {
+  updateMsg.value = { text: '', type: '' }
+  updateChecking.value = true
+  try {
+    const res = await api.get('/admin/update/check')
+    updateInfo.value = res.data
+    if (!res.data.has_update) {
+      updateMsg.value = { text: '当前已是最新版本', type: 'success' }
+    }
+  } catch (err: any) {
+    updateMsg.value = { text: err.response?.data?.error || '检查更新失败', type: 'error' }
+  } finally {
+    updateChecking.value = false
+  }
+}
+
+async function applyUpdate() {
+  if (!updateInfo.value?.download_url) {
+    updateMsg.value = { text: '未找到适合当前系统的安装包，请手动更新', type: 'error' }
+    return
+  }
+  updateMsg.value = { text: '', type: '' }
+  updateApplying.value = true
+  try {
+    await api.post('/admin/update/apply')
+    restarting.value = true
+    updateMsg.value = { text: '新版本下载完成，服务正在重启，请稍候...', type: 'success' }
+    startRestartPolling()
+  } catch (err: any) {
+    updateMsg.value = { text: err.response?.data?.error || '更新失败', type: 'error' }
+    updateApplying.value = false
+  }
+}
+
+function startRestartPolling() {
+  if (restartPollTimer) clearInterval(restartPollTimer)
+  // Give the server a moment to start restarting before polling.
+  setTimeout(() => {
+    restartPollTimer = setInterval(async () => {
+      try {
+        await api.get('/system/init-status', { timeout: 3000 })
+        // Server is back up.
+        if (restartPollTimer) clearInterval(restartPollTimer)
+        restarting.value = false
+        updateApplying.value = false
+        updateInfo.value = null
+        updateMsg.value = { text: '更新完成，服务已重启', type: 'success' }
+        // Reload the page so the new frontend assets are loaded.
+        setTimeout(() => window.location.reload(), 1500)
+      } catch {
+        // Server still restarting, keep polling.
+      }
+    }, 2000)
+  }, 3000)
+}
 </script>
 
 <template>
@@ -92,6 +158,9 @@ function formatDate(dateStr: string) {
       </button>
       <button @click="activeTab = 'logs'; fetchLogs()" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px" :class="activeTab === 'logs' ? 'border-[hsl(var(--primary))] text-[hsl(var(--foreground))]' : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'">
         <FileText class="w-4 h-4 inline mr-1.5" />下载记录
+      </button>
+      <button @click="activeTab = 'update'; checkUpdate()" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px" :class="activeTab === 'update' ? 'border-[hsl(var(--primary))] text-[hsl(var(--foreground))]' : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'">
+        <RefreshCw class="w-4 h-4 inline mr-1.5" />版本更新
       </button>
     </div>
 
@@ -199,6 +268,61 @@ function formatDate(dateStr: string) {
               <ChevronRight class="w-4 h-4" />
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Version Update -->
+    <div v-if="activeTab === 'update'" class="space-y-6">
+      <div class="bg-white rounded-lg border border-[hsl(var(--border))] shadow-sm p-6">
+        <h3 class="text-base font-semibold mb-4">版本更新</h3>
+
+        <!-- Restarting overlay -->
+        <div v-if="restarting" class="mb-4 p-4 rounded-md bg-blue-50 text-blue-700 flex items-center gap-3">
+          <RefreshCw class="w-5 h-5 animate-spin flex-shrink-0" />
+          <span class="text-sm">服务正在重启，请稍候...</span>
+        </div>
+
+        <div v-if="updateMsg.text && !restarting" class="mb-4 p-3 rounded-md text-sm" :class="updateMsg.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'">
+          {{ updateMsg.text }}
+        </div>
+
+        <!-- Version info -->
+        <div v-if="updateInfo" class="mb-4 space-y-2">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-[hsl(var(--muted-foreground))]">当前版本：</span>
+            <span class="font-mono font-medium">{{ updateInfo.current_version }}</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-[hsl(var(--muted-foreground))]">最新版本：</span>
+            <span class="font-mono font-medium">{{ updateInfo.latest_version }}</span>
+            <span v-if="updateInfo.has_update" class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">有新版本</span>
+            <span v-else class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">已是最新</span>
+          </div>
+          <div v-if="updateInfo.has_update && !updateInfo.download_url" class="text-xs text-amber-600 mt-1">
+            未找到适合当前系统 ({{ updateInfo.os }}) 的安装包，请前往 GitHub 手动下载更新。
+          </div>
+        </div>
+
+        <div class="flex gap-2 flex-wrap">
+          <button
+            @click="checkUpdate"
+            :disabled="updateChecking || updateApplying"
+            class="px-4 py-2 rounded-md border border-[hsl(var(--border))] text-sm font-medium hover:bg-[hsl(var(--secondary))] disabled:opacity-50 flex items-center gap-1.5"
+          >
+            <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': updateChecking }" />
+            {{ updateChecking ? '检查中...' : '检查更新' }}
+          </button>
+
+          <button
+            v-if="updateInfo?.has_update && updateInfo?.download_url"
+            @click="applyUpdate"
+            :disabled="updateApplying"
+            class="px-4 py-2 rounded-md bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
+          >
+            <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': updateApplying }" />
+            {{ updateApplying ? '更新中...' : '立即更新到 ' + updateInfo.latest_version }}
+          </button>
         </div>
       </div>
     </div>

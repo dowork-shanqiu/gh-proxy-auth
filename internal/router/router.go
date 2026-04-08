@@ -14,6 +14,7 @@ func Setup(engine *gin.Engine) {
 	tokenHandler := handlers.NewTokenHandler()
 	adminHandler := handlers.NewAdminHandler()
 	systemHandler := handlers.NewSystemHandler()
+	updateHandler := handlers.NewUpdateHandler()
 	proxyHandler := handlers.NewProxyHandler()
 
 	// System APIs (no auth required)
@@ -66,6 +67,8 @@ func Setup(engine *gin.Engine) {
 			admin.PUT("/settings", adminHandler.UpdateSettings)
 			admin.GET("/users", adminHandler.ListUsers)
 			admin.GET("/logs", adminHandler.GetDownloadLogs)
+			admin.GET("/update/check", updateHandler.CheckUpdate)
+			admin.POST("/update/apply", updateHandler.ApplyUpdate)
 		}
 	}
 
