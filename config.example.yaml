@@ -1,0 +1,17 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+database:
+  driver: "sqlite"        # sqlite, mysql, postgres
+  dsn: "data.db"          # sqlite: file path; mysql: user:pass@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True&loc=Local; postgres: host=localhost user=user password=pass dbname=db port=5432 sslmode=disable
+
+jwt:
+  secret: "change-me-to-a-random-string"
+  expire: "24h"
+
+domain: "http://localhost:8080"
+
+proxy:
+  size_limit: 1073741824  # 1GB
+  jsdelivr: false
