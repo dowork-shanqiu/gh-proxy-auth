@@ -1,0 +1,37 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+gh-proxy-auth
+
+# Test binary
+*.test
+
+# Output
+*.out
+
+# Dependency
+/vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Config
+config.yaml
+
+# Database
+*.db
+*.db-journal
+
+# Frontend
+web/node_modules/
+web/dist/
+
+# OS
+.DS_Store
+Thumbs.db
