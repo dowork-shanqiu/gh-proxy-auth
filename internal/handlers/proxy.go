@@ -239,7 +239,7 @@ c.Status(resp.StatusCode)
 var reader io.Reader = resp.Body
 var buf []byte
 
-userLimiter := (*tokenBucket)(nil)
+var userLimiter *tokenBucket
 if speedLimit > 0 {
 userLimiter = newTokenBucket(speedLimit)
 }
