@@ -316,13 +316,9 @@ func (h *AuthHandler) FinishPasskeyLogin(c *gin.Context) {
 
 	service.ClearSessionData(user.ID)
 
-	// Update sign count and flags after successful login
+	// Update sign count after successful login
 	database.DB.Model(&models.Passkey{}).Where("user_id = ? AND credential_id = ?", user.ID, credIDBase64).
-		Updates(map[string]interface{}{
-			"sign_count":      credential.Authenticator.SignCount,
-			"backup_eligible": credential.Flags.BackupEligible,
-			"backup_state":    credential.Flags.BackupState,
-		})
+		Update("sign_count", credential.Authenticator.SignCount)
 
 	token, err := service.GenerateJWT(user.ID, user.Username, user.IsAdmin)
 	if err != nil {

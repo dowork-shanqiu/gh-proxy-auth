@@ -72,10 +72,6 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (!auth.isLoggedIn) {
-    return { name: 'login' }
-  }
-
   if (to.meta.admin && !auth.isAdmin) {
     return { name: 'home' }
   }
